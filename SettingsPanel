@@ -1,0 +1,214 @@
+import javax.swing.*;
+import java.awt.*;
+
+public class SettingsPanel extends JPanel {
+
+    private final JSpinner numWormsSpinner;
+    private final JCheckBox chooseColorsCheckbox;
+
+    private final JCheckBox randomEndpointsCheckbox;
+    private final JTextField startField;
+    private final JTextField endField;
+
+    private final JRadioButton fixedSizeRadio;
+    private final JRadioButton randomSizeRadio;
+    private final JSpinner fixedSizeSpinner;
+    private final JSpinner minSizeSpinner;
+    private final JSpinner maxSizeSpinner;
+
+    public SettingsPanel() {
+        setLayout(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.insets = new Insets(4, 4, 4, 4);
+        c.anchor = GridBagConstraints.WEST;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.weightx = 1.0;
+
+        int row = 0;
+
+        // ===== Number of worms =====
+        JLabel wormsLabel = new JLabel("Number of worms (lines):");
+        numWormsSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1)); // default 1
+
+        c.gridx = 0; c.gridy = row;
+        add(wormsLabel, c);
+        c.gridx = 1;
+        add(numWormsSpinner, c);
+        row++;
+
+        // ===== Color choice =====
+        chooseColorsCheckbox = new JCheckBox("Choose colors manually (otherwise random neon)");
+        chooseColorsCheckbox.setSelected(false); // default: random neon
+
+        c.gridx = 0; c.gridy = row; c.gridwidth = 2;
+        add(chooseColorsCheckbox, c);
+        row++;
+        c.gridwidth = 1;
+
+        // ===== Endpoints =====
+        randomEndpointsCheckbox = new JCheckBox("Random start/end points");
+        randomEndpointsCheckbox.setSelected(true); // default: random
+
+        c.gridx = 0; c.gridy = row; c.gridwidth = 2;
+        add(randomEndpointsCheckbox, c);
+        row++;
+        c.gridwidth = 1;
+
+        startField = new JTextField("0,0,0", 15);
+        endField   = new JTextField("50,20,50", 15);
+
+        JLabel startLabel = new JLabel("Start (x,y,z):");
+        JLabel endLabel   = new JLabel("End (x,y,z):");
+
+        c.gridx = 0; c.gridy = row;
+        add(startLabel, c);
+        c.gridx = 1;
+        add(startField, c);
+        row++;
+
+        c.gridx = 0; c.gridy = row;
+        add(endLabel, c);
+        c.gridx = 1;
+        add(endField, c);
+        row++;
+
+        // ===== Segment size mode =====
+        fixedSizeRadio  = new JRadioButton("Fixed segment size:");
+        randomSizeRadio = new JRadioButton("Random segment size in range:");
+        ButtonGroup sizeGroup = new ButtonGroup();
+        sizeGroup.add(fixedSizeRadio);
+        sizeGroup.add(randomSizeRadio);
+
+        fixedSizeRadio.setSelected(true); // default: fixed size (1 segment size)
+
+        fixedSizeSpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.1, 10.0, 0.1)); // default 1.0
+        minSizeSpinner   = new JSpinner(new SpinnerNumberModel(0.5, 0.1, 10.0, 0.1));
+        maxSizeSpinner   = new JSpinner(new SpinnerNumberModel(1.5, 0.1, 10.0, 0.1));
+
+        // Fixed size row
+        c.gridx = 0; c.gridy = row;
+        add(fixedSizeRadio, c);
+        c.gridx = 1;
+        add(fixedSizeSpinner, c);
+        row++;
+
+        // Random size row
+        JPanel rangePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        rangePanel.add(new JLabel("min:"));
+        rangePanel.add(minSizeSpinner);
+        rangePanel.add(new JLabel("max:"));
+        rangePanel.add(maxSizeSpinner);
+
+        c.gridx = 0; c.gridy = row;
+        add(randomSizeRadio, c);
+        c.gridx = 1;
+        add(rangePanel, c);
+        row++;
+
+        // Initial enabling/disabling of fields
+        updateEndpointFieldsEnabled();
+        updateSizeFieldsEnabled();
+
+        // Listeners
+        randomEndpointsCheckbox.addActionListener(e -> updateEndpointFieldsEnabled());
+        fixedSizeRadio.addActionListener(e -> updateSizeFieldsEnabled());
+        randomSizeRadio.addActionListener(e -> updateSizeFieldsEnabled());
+    }
+
+    private void updateEndpointFieldsEnabled() {
+        boolean random = randomEndpointsCheckbox.isSelected();
+        startField.setEnabled(!random);
+        endField.setEnabled(!random);
+    }
+
+    private void updateSizeFieldsEnabled() {
+        boolean fixed  = fixedSizeRadio.isSelected();
+        boolean random = randomSizeRadio.isSelected();
+
+        fixedSizeSpinner.setEnabled(fixed);
+
+        minSizeSpinner.setEnabled(random);
+        maxSizeSpinner.setEnabled(random);
+    }
+
+    // ===== Values you can read from the panel =====
+
+    public int getNumWorms() {
+        return (Integer) numWormsSpinner.getValue();
+    }
+
+    public boolean isChooseColorsManually() {
+        return chooseColorsCheckbox.isSelected();
+    }
+
+    public boolean isRandomEndpoints() {
+        return randomEndpointsCheckbox.isSelected();
+    }
+
+    public String getStartText() {
+        return startField.getText();
+    }
+
+    public String getEndText() {
+        return endField.getText();
+    }
+
+    public boolean useRandomSegmentSizes() {
+        return randomSizeRadio.isSelected();
+    }
+
+    public double getFixedSize() {
+        return ((Number) fixedSizeSpinner.getValue()).doubleValue();
+    }
+
+    public double getMinSize() {
+        return ((Number) minSizeSpinner.getValue()).doubleValue();
+    }
+
+    public double getMaxSize() {
+        return ((Number) maxSizeSpinner.getValue()).doubleValue();
+    }
+
+    // Build a WormSettings template (shared defaults for all worms)
+    public WormSettings buildSettingsTemplate() {
+        WormSettings s = new WormSettings();
+
+        if (!isRandomEndpoints()) {
+            s.startPoint = parseVector(getStartText(), new Vector3(0, 0, 0));
+            s.endPoint   = parseVector(getEndText(),   new Vector3(50, 20, 50));
+        }
+        s.useRandomSegmentSizes = useRandomSegmentSizes();
+        if (s.useRandomSegmentSizes) {
+            double min = getMinSize();
+            double max = getMaxSize();
+            if (min <= 0 || max <= 0 || min >= max) {
+                min = 0.5;
+                max = 1.5;
+            }
+            s.minSegmentSize = min;
+            s.maxSegmentSize = max;
+            s.fixedSegmentSize = (min + max) / 2.0;
+        } else {
+            double fixed = getFixedSize();
+            if (fixed <= 0) fixed = 1.0;
+            s.fixedSegmentSize = fixed;
+            s.minSegmentSize   = fixed;
+            s.maxSegmentSize   = fixed;
+        }
+
+        return s;
+    }
+
+    private Vector3 parseVector(String text, Vector3 fallback) {
+        try {
+            String[] parts = text.split(",");
+            if (parts.length != 3) return fallback;
+            double x = Double.parseDouble(parts[0].trim());
+            double y = Double.parseDouble(parts[1].trim());
+            double z = Double.parseDouble(parts[2].trim());
+            return new Vector3(x, y, z);
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+}
