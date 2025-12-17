@@ -1,0 +1,100 @@
+import javax.swing.*;
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class RandomWalk3DApp {
+
+    private static final Random RAND = new Random();
+
+    private static Color randomNeonColor() {
+        float hue = RAND.nextFloat();
+        float saturation = 1.0f;
+        float brightness = 1.0f;
+        return Color.getHSBColor(hue, saturation, brightness);
+    }
+
+    private static double randRange(double min, double max) {
+        return min + RAND.nextDouble() * (max - min);
+    }
+
+    private static Vector3 randomPointInCube(double min, double max) {
+        return new Vector3(
+                randRange(min, max),
+                randRange(min, max),
+                randRange(min, max)
+        );
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+
+                // === Show settings panel ===
+                SettingsPanel panel = new SettingsPanel();
+                int result = JOptionPane.showConfirmDialog(
+                        null,
+                        panel,
+                        "3D Worm Settings",
+                        JOptionPane.OK_CANCEL_OPTION,
+                        JOptionPane.PLAIN_MESSAGE
+                );
+
+                if (result != JOptionPane.OK_OPTION) {
+                    return; // user cancelled
+                }
+
+                int numWorms = panel.getNumWorms();
+                if (numWorms < 1) numWorms = 1;
+                if (numWorms > 10) numWorms = 10;
+
+                boolean chooseColorsManually = panel.isChooseColorsManually();
+                boolean randomEndpoints      = panel.isRandomEndpoints();
+
+                WormSettings template = panel.buildSettingsTemplate();
+
+                List<RandomWormGenerator> generators = new ArrayList<>();
+                List<Color> colors                   = new ArrayList<>();
+
+                for (int i = 0; i < numWorms; i++) {
+                    WormSettings s = template.copy();
+
+                    if (randomEndpoints) {
+                        s.startPoint = randomPointInCube(-30, 30);
+                        s.endPoint   = randomPointInCube(-30, 30);
+                    }
+
+                    RandomWormGenerator generator = new RandomWormGenerator(s);
+                    generator.generate();
+                    generators.add(generator);
+
+                    Color col;
+                    if (chooseColorsManually) {
+                        Color initial = randomNeonColor();
+                        col = JColorChooser.showDialog(
+                                null,
+                                "Choose color for worm #" + (i + 1),
+                                initial
+                        );
+                        if (col == null) col = initial;
+                    } else {
+                        col = randomNeonColor();
+                    }
+                    colors.add(col);
+                }
+
+                JFrame frame = new JFrame("3D Random Worm Viewer");
+                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+                RandomWalk3DViewer viewer = new RandomWalk3DViewer(generators, colors);
+                frame.add(viewer);
+
+                frame.setSize(900, 700);
+                frame.setLocationRelativeTo(null);
+                frame.setVisible(true);
+            }
+        });
+    }
+}
